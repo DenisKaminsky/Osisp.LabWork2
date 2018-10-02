@@ -75,8 +75,8 @@ void DrawTable(HDC hdc,int sx,int sy)
 			posX += hx;
 		}
 		
-		MoveToEx(hdc, posX, posY, NULL);
-		LineTo(hdc, posX, posY + hy);
+		MoveToEx(hdc, posX-1, posY, NULL);
+		LineTo(hdc, posX-1, posY + hy);
 
 		MoveToEx(hdc, 0, posY, NULL);
 		LineTo(hdc, sx, posY);
@@ -118,7 +118,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		top += step;
-		if ((top != SCROLL_SPEED))
+		if ( ((top != SCROLL_SPEED) && (step>0)) || ((step<0) && (bottom >= height)) )
 		{
 			ScrollWindow(hWnd, 0, step, NULL, NULL);
 			UpdateWindow(hWnd);
