@@ -19,16 +19,6 @@ const TCHAR* matrix[rows][columns] = { {"sometext1 sometext1 sometext1 sometext1
 									   { "sometext26","sometext27","sometext28 sometext28 sometext28 sometext28 sometext28 sometext28 sometext28","sometext29","sometext30"}, 
 									};
 
-SIZE GetWindowsSize(HBITMAP hBitmap)
-{
-	BITMAP bitmap;
-	GetObject(hBitmap, sizeof(BITMAP), &bitmap);
-	SIZE result;
-	result.cx = bitmap.bmWidth;
-	result.cy = bitmap.bmHeight;
-	return result;
-}
-
 float GetRowSize(HDC hdc, int rowNumber,float hx)
 {
 	int maxLength = 0;
@@ -95,6 +85,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	PAINTSTRUCT ps;
 
 	int step = 0;
+	int wheelDelta;
 	static int width, height;
 
 	switch (message)
@@ -105,7 +96,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		ScrollWindow(hWnd, 0, -top, NULL, NULL);
 		UpdateWindow(hWnd);
 		top = 0;
+		SetScrollPos(hWnd, SB_VERT, 0, TRUE);
+		
 		InvalidateRect(hWnd, NULL, TRUE);
+		SetScrollRange(hWnd, SB_VERT, 0, bottom, TRUE);
+		break;
+	case WM_MOUSEWHEEL:
+		wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+		if (wheelDelta > 0)
+			SendMessage(hWnd, WM_VSCROLL, SB_LINEUP, NULL);
+		if (wheelDelta < 0)
+			SendMessage(hWnd, WM_VSCROLL, SB_LINEDOWN, NULL);
 		break;
 	case WM_VSCROLL:
 		switch (LOWORD(wParam))
@@ -120,11 +121,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		top += step;
 		if ( ((top != SCROLL_SPEED) && (step>0)) || ((step<0) && (bottom >= height)) )
 		{
+			SetScrollPos(hWnd, SB_VERT, -top, TRUE);
 			ScrollWindow(hWnd, 0, step, NULL, NULL);
 			UpdateWindow(hWnd);
 		}
 		else
-			top -= step;
+			top -= step;		
 		break;
 	//обработка сообщений перерисовки
 	case WM_PAINT:
@@ -169,12 +171,10 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 		WS_OVERLAPPEDWINDOW|WS_VSCROLL, CW_USEDEFAULT, 0,
 		CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);	
 
-	
 	//отображение окна
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
-
-	SetScrollRange(hWnd, SB_CTL, 0, 10, FALSE);
+	
 	//прием сообщений
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
