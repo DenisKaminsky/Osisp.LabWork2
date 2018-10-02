@@ -5,9 +5,12 @@
 #include <gdiplus.h>
 
 #define BACKGROUND_COLOR GetSysColor(COLOR_WINDOW)
+#define SCROLL_SPEED 10
 
 const int rows = 6;
 const int columns = 5;
+int top = 0, bottom = 0;
+
 const TCHAR* matrix[rows][columns] = { {"sometext1 sometext1 sometext1 sometext1 sometext1","sometext2","sometext3","sometext4","sometext5"},
 									   {"sometext6","sometext7","sometext8","sometext9","sometext10"},
 									   { "sometext11","sometext12","sometext13","sometext14","sometext15"}, 
@@ -16,7 +19,7 @@ const TCHAR* matrix[rows][columns] = { {"sometext1 sometext1 sometext1 sometext1
 									   { "sometext26","sometext27","sometext28 sometext28 sometext28 sometext28 sometext28 sometext28 sometext28","sometext29","sometext30"}, 
 									};
 
-SIZE GetBitmapSize(HBITMAP hBitmap)
+SIZE GetWindowsSize(HBITMAP hBitmap)
 {
 	BITMAP bitmap;
 	GetObject(hBitmap, sizeof(BITMAP), &bitmap);
@@ -51,9 +54,9 @@ float GetRowSize(HDC hdc, int rowNumber,float hx)
 
 void DrawTable(HDC hdc,int sx,int sy)
 {
-	float posX = 0, posY = 0;
+	float posX = 0, posY = (float)top;
 	float hx = (float)sx / columns;
-	float hy = (float)sy / rows;
+	float hy = 0;
 
 	for (int i = 0; i < rows; i++)
 	{
@@ -81,6 +84,7 @@ void DrawTable(HDC hdc,int sx,int sy)
 	}
 	MoveToEx(hdc, 0, posY, NULL);
 	LineTo(hdc, sx, posY);
+	bottom = posY;
 }
 
 //обработчик сообщений
@@ -90,6 +94,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	static HBRUSH solidBrush = CreateSolidBrush(RGB(0, 255, 0));
 	PAINTSTRUCT ps;
 
+	int step = 0;
 	static int width, height;
 
 	switch (message)
@@ -97,12 +102,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_SIZE: 
 		width = LOWORD(lParam);
 		height = HIWORD(lParam);
+		ScrollWindow(hWnd, 0, -top, NULL, NULL);
+		UpdateWindow(hWnd);
+		top = 0;
 		InvalidateRect(hWnd, NULL, TRUE);
+		break;
+	case WM_VSCROLL:
+		switch (LOWORD(wParam))
+		{
+		case SB_LINEUP:
+			step = SCROLL_SPEED;
+			break;
+		case SB_LINEDOWN:
+			step = -SCROLL_SPEED;
+			break;
+		}
+		top += step;
+		if ((top != SCROLL_SPEED))
+		{
+			ScrollWindow(hWnd, 0, step, NULL, NULL);
+			UpdateWindow(hWnd);
+		}
+		else
+			top -= step;
 		break;
 	//обработка сообщений перерисовки
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);//дискриптор контекста устройства клиентской области окна
-
 		DrawTable(hdc, width, height);
 		ReleaseDC(hWnd, hdc);
 		EndPaint(hWnd, &ps);
@@ -139,25 +165,16 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	
 	RegisterClassEx(&wcex);//регистрация окна
 
-						   //создание окна
 	hWnd = CreateWindow("LabWork2Class", "OSISP.LabWork 2",
-		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0,
+		WS_OVERLAPPEDWINDOW|WS_VSCROLL, CW_USEDEFAULT, 0,
 		CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);	
 
-	RECT rect;
-	rect.top = 0;
-	rect.left = 0;
-	rect.right = 1;
-	rect.bottom = 1;
-	TCHAR* st = "hello";
-	HDC hdc = GetDC(hWnd);
-	int wid = DrawText(hdc,st,lstrlen(st), &rect, DT_CALCRECT);
-	ReleaseDC(hWnd, hdc);
-
+	
 	//отображение окна
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);
 
+	SetScrollRange(hWnd, SB_CTL, 0, 10, FALSE);
 	//прием сообщений
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
