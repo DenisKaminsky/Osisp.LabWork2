@@ -6,7 +6,7 @@ using namespace std;
 #define SCROLL_SPEED 30
 
 const int rows = 5;
-const int columns = 20;
+const int columns = 6;
 int top = 0, bottom = 0;
 
 string matrix[rows][columns] = {};
@@ -103,13 +103,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	switch (message)
 	{
+	case WM_GETMINMAXINFO:
+	{
+		MINMAXINFO *pInfo = (MINMAXINFO *)lParam;
+		POINT Min = {columns*20, 500};
+		pInfo->ptMinTrackSize = Min;
+		break;
+	}
 	case WM_SIZE: 
 		width = LOWORD(lParam);
 		height = HIWORD(lParam);
 		ScrollWindow(hWnd, 0, -top, NULL, NULL);
 		UpdateWindow(hWnd);
-		top = 0;	
-		InvalidateRect(hWnd, NULL, TRUE);
+		top = 0;
+		InvalidateRect(hWnd, NULL, TRUE);		
 		break;
 	case WM_MOUSEWHEEL:
 		wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
