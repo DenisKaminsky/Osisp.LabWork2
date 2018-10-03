@@ -1,23 +1,35 @@
-#define _USE_MATH_DEFINES
 #include <windows.h>
-#include <atlimage.h>
-#include <math.h>
-#include <gdiplus.h>
+#include <string>
 
-#define BACKGROUND_COLOR GetSysColor(COLOR_WINDOW)
-#define SCROLL_SPEED 10
+using namespace std;
 
-const int rows = 6;
-const int columns = 5;
+#define SCROLL_SPEED 30
+
+const int rows = 5;
+const int columns = 20;
 int top = 0, bottom = 0;
 
-const TCHAR* matrix[rows][columns] = { {"sometext1 sometext1 sometext1 sometext1 sometext1","sometext2","sometext3","sometext4","sometext5"},
-									   {"sometext6","sometext7","sometext8","sometext9","sometext10"},
-									   { "sometext11","sometext12","sometext13","sometext14","sometext15"}, 
-									   { "sometext16","sometext17","sometext18","sometext19","sometext20"}, 
-									   { "sometext21","sometext22","sometext23","sometext24","sometext25"}, 
-									   { "sometext26","sometext27","sometext28 sometext28 sometext28 sometext28 sometext28 sometext28 sometext28","sometext29","sometext30"}, 
-									};
+string matrix[rows][columns] = {};
+
+void GenerateMatrix()
+{
+	int randcounter = 0;
+	int counter = 1;
+	string s = "";
+
+	for (int i = 0; i < rows; i++)
+	{
+		for (int j = 0; j < columns; j++)
+		{
+			randcounter = rand() % 8 + 1;
+			for (int k= 0;k<randcounter;k++)
+				s+="sometext" + to_string(counter)+" ";
+			matrix[i][j] = s;
+			s = "";
+			counter++;
+		}
+	}
+}
 
 float GetRowSize(HDC hdc, int rowNumber,float hx)
 {
@@ -25,7 +37,7 @@ float GetRowSize(HDC hdc, int rowNumber,float hx)
 	int maxIndex = 0;
 	for (int i = 0; i < columns; i++)
 	{
-		int length = lstrlen(matrix[rowNumber][i]);
+		int length = matrix[rowNumber][i].length();
 		if (length > maxLength)
 		{
 			maxLength = length;
@@ -37,7 +49,7 @@ float GetRowSize(HDC hdc, int rowNumber,float hx)
 	rect.left = 0;
 	rect.right = hx-2;
 	rect.bottom = 1;
-	DrawText(hdc, matrix[rowNumber][maxIndex], maxLength, &rect,DT_CALCRECT| DT_WORDBREAK| DT_EDITCONTROL | DT_CENTER);
+	DrawText(hdc, matrix[rowNumber][maxIndex].c_str(), maxLength, &rect,DT_CALCRECT| DT_WORDBREAK| DT_EDITCONTROL | DT_CENTER);
 	int textRows = (int)((rect.right / (hx - 2)) + 1);
 	return (float)(textRows*rect.bottom+2);
 }
@@ -61,7 +73,8 @@ void DrawTable(HDC hdc,int sx,int sy)
 			rect.left = posX + 1;
 			rect.right = posX + hx - 1;
 			rect.bottom = posY+hy - 1;
-			DrawText(hdc, matrix[i][j], lstrlen(matrix[i][j]), &rect, DT_WORDBREAK | DT_EDITCONTROL| DT_CENTER|DT_VCENTER);
+			LPCSTR str = matrix[i][j].c_str();
+			DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL| DT_CENTER|DT_VCENTER);
 			posX += hx;
 		}
 		
@@ -95,11 +108,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		height = HIWORD(lParam);
 		ScrollWindow(hWnd, 0, -top, NULL, NULL);
 		UpdateWindow(hWnd);
-		top = 0;
-		SetScrollPos(hWnd, SB_VERT, 0, TRUE);
-		
+		top = 0;	
 		InvalidateRect(hWnd, NULL, TRUE);
-		SetScrollRange(hWnd, SB_VERT, 0, bottom, TRUE);
 		break;
 	case WM_MOUSEWHEEL:
 		wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
@@ -121,7 +131,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		top += step;
 		if ( ((top != SCROLL_SPEED) && (step>0)) || ((step<0) && (bottom >= height)) )
 		{
-			SetScrollPos(hWnd, SB_VERT, -top, TRUE);
 			ScrollWindow(hWnd, 0, step, NULL, NULL);
 			UpdateWindow(hWnd);
 		}
@@ -171,10 +180,12 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 		WS_OVERLAPPEDWINDOW|WS_VSCROLL, CW_USEDEFAULT, 0,
 		CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);	
 
+	GenerateMatrix();
+
 	//отображение окна
 	ShowWindow(hWnd, nCmdShow);
-	UpdateWindow(hWnd);
-	
+	UpdateWindow(hWnd);	
+
 	//прием сообщений
 	while (GetMessage(&msg, NULL, 0, 0))
 	{
