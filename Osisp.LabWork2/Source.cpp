@@ -4,12 +4,15 @@
 using namespace std;
 
 #define SCROLL_SPEED 30
+#define MAX_ROWS_COUNT 30
+#define MAX_COLUMNS_COUNT 30
 
-const int rows = 5;
-const int columns = 6;
+int rows = 5;
+int columns = 30;
+
 int top = 0, bottom = 0;
 
-string matrix[rows][columns] = {};
+string** matrix;
 
 void GenerateMatrix()
 {
@@ -17,8 +20,20 @@ void GenerateMatrix()
 	int counter = 1;
 	string s = "";
 
+	if (columns < 1)
+		columns = 1;
+	if (columns > 30)
+		columns = 30;
+	if (rows < 1)
+		rows = 1;
+	if (rows > 30)
+		rows = 30;
+
+	matrix = new string*[rows];
+
 	for (int i = 0; i < rows; i++)
 	{
+		matrix[i] = new string[columns];
 		for (int j = 0; j < columns; j++)
 		{
 			randcounter = rand() % 8 + 1;
@@ -28,6 +43,14 @@ void GenerateMatrix()
 			s = "";
 			counter++;
 		}
+	}
+}
+
+void RemoveMatrix()
+{
+	for (int i = 0; i < rows; i++)
+	{
+		delete[] matrix[i];
 	}
 }
 
@@ -94,7 +117,6 @@ void DrawTable(HDC hdc,int sx,int sy)
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
-	static HBRUSH solidBrush = CreateSolidBrush(RGB(0, 255, 0));
 	PAINTSTRUCT ps;
 
 	int step = 0;
@@ -152,7 +174,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		EndPaint(hWnd, &ps);
 		break;
 	case WM_DESTROY:
-		DeleteObject(solidBrush);
+		RemoveMatrix();
 		PostQuitMessage(0);
 		break;
 	default:
@@ -183,11 +205,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	
 	RegisterClassEx(&wcex);//регистрация окна
 
+	GenerateMatrix();
+
 	hWnd = CreateWindow("LabWork2Class", "OSISP.LabWork 2",
 		WS_OVERLAPPEDWINDOW|WS_VSCROLL, CW_USEDEFAULT, 0,
 		CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);	
-
-	GenerateMatrix();
 
 	//отображение окна
 	ShowWindow(hWnd, nCmdShow);
