@@ -22,12 +22,12 @@ void GenerateMatrix()
 
 	if (columns < 1)
 		columns = 1;
-	if (columns > 30)
-		columns = 30;
+	if (columns > MAX_COLUMNS_COUNT)
+		columns = MAX_COLUMNS_COUNT;
 	if (rows < 1)
 		rows = 1;
-	if (rows > 30)
-		rows = 30;
+	if (rows > MAX_ROWS_COUNT)
+		rows = MAX_ROWS_COUNT;
 
 	matrix = new string*[rows];
 
@@ -97,7 +97,7 @@ void DrawTable(HDC hdc,int sx,int sy)
 			rect.right = posX + hx - 1;
 			rect.bottom = posY+hy - 1;
 			LPCSTR str = matrix[i][j].c_str();
-			DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL| DT_CENTER|DT_VCENTER);
+			DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL| DT_CENTER);
 			posX += hx;
 		}
 		
