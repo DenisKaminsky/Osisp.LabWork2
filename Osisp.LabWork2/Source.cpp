@@ -47,7 +47,7 @@ void GenerateMatrix()
 			randcounter = rand() % 8 + 1;
 			s += to_string(randcounter);
 			for (int k= 0;k<randcounter;k++)
-				s+="someaeba" + to_string(counter)+" ";
+				s+="sometext" + to_string(counter)+" ";
 			matrix[i][j] = s;
 			s = "";
 			counter++;
@@ -64,6 +64,7 @@ void RemoveMatrix()
 	}
 }
 
+//длина неформатированного текста
 int GetTextLength(HDC hdc,int i,int j)
 {
 	RECT rect;
@@ -75,6 +76,7 @@ int GetTextLength(HDC hdc,int i,int j)
 	return rect.right;
 }
 
+//
 //получение максимальной высоты указанной строки
 float GetRowHeight(HDC hdc, int rowNumber,float hx,int borderSize)
 {
@@ -98,20 +100,47 @@ float GetRowHeight(HDC hdc, int rowNumber,float hx,int borderSize)
 	return (float)(rect.bottom+2*borderSize);
 }
 
+string ParseString(string str)
+{
+	string tempStr = "";
+	char space = (char)0x20;
+	int i = 0, count = (int)((textSpacing / 4));
+
+	for (int i = 0; i < count; i++)
+		tempStr += space;
+	while (i < str.length())
+	{
+		if (str[i] != space)
+		{
+			str.insert(i + 1, tempStr);
+			i += tempStr.length() + 1;
+		}
+		else
+		{
+			i++;
+		}
+	}			
+	return str;
+}
+
 //рисование таблицы
 void DrawTable(HDC hdc,int sx,int sy,int borderSize)
 {
 	float posX = 0, posY = (float)top;
 	float hx = (float)sx / columns;
 	float hy = 0, extTextLineLength;
-	int extTextLength, linesCount;
+	//int extTextLength, linesCount
 	HFONT hFont;
 	RECT rect;
-	SIZE sz;
+	//SIZE sz;
 	Graphics *g = new Graphics(hdc);
 	Brush *brush = new SolidBrush(Color::RoyalBlue);
+	LinearGradientBrush *br = new LinearGradientBrush(Point(0, 10), Point(200, 10), Color(255, 255, 0, 0), Color(255, 0, 0, 255));
 	StringFormat *format = new StringFormat();
 	Font *font;
+	wstring ws;
+	RectF *r;
+	string str;
 
 	//letterWidth = (int)((hx - 2 * borderSize) / 10)+5;
 	//letterHeight = (int)(epsilon*letterWidth);
@@ -122,18 +151,18 @@ void DrawTable(HDC hdc,int sx,int sy,int borderSize)
 		CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH,
 		TEXT("Times New Roman"));
 	font = new Font(hdc, hFont);
-	SelectObject(hdc, hFont);
+	/*SelectObject(hdc, hFont);
 	SetTextCharacterExtra(hdc, textSpacing);
 	GetTextExtentPoint32(hdc, matrix[0][0].c_str(), matrix[0][0].length(), &sz);
 	extTextLength = sz.cx;
 	linesCount = (int)((GetTextLength(hdc,0,0)/(hx -2*borderSize)) + 1);
 	extTextLineLength = (float)extTextLength / linesCount;
 	if (extTextLineLength < hx)
-		extTextLineLength = hx;
+		extTextLineLength = hx;*/
 
 	for (int i = 0; i < rows; i++)
 	{
-		hy = GetRowHeight(hdc,i, hx,borderSize)*5;
+		hy = GetRowHeight(hdc,i, hx,borderSize);
 		posX = 0;
 		for (int j = 0; j < columns; j++)
 		{
@@ -141,13 +170,14 @@ void DrawTable(HDC hdc,int sx,int sy,int borderSize)
 			LineTo(hdc, (int)posX, (int)(posY+hy));
 			rect.top = (long)(posY+borderSize);
 			rect.left = (long)(posX + borderSize);
-			rect.right = (long)(posX + ((hx)*(hx)/ extTextLineLength) -borderSize);
-			rect.bottom = (long)(posY+hy - borderSize);			
-			//DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL | DT_LEFT | DT_NOCLIP);
-			RectF *r = new RectF(rect.left, rect.top, hx, hy);
-			wstring ws = wstring(matrix[i][j].begin(), matrix[i][j].end());
+			rect.right = (long)(posX + hx -borderSize);//(hx)*(hx)/extTextLineLength
+			rect.bottom = (long)(posY+hy - borderSize);	
+			str = ParseString(matrix[i][j]);
+			//DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL | DT_LEFT );
+			r = new RectF(rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top);
+			ws = wstring(str.begin(), str.end());
 			const wchar_t* resstr = ws.c_str();
-			g->DrawString(resstr, matrix[i][j].length(), font, *r,format,brush);
+			g->DrawString(resstr, str.length(), font, *r,format,br);
 			posX += hx;
 		}
 		
@@ -190,18 +220,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_KEYDOWN: // Обработка нажатия клавиши
 		isPressed = false;
-		if (wParam == 39) //вправо
-			if (letterWidth < MAX_LETTER_WIDTH)
-			{
-				letterWidth++;
-				isPressed = true;
-			}
-		if (wParam == 37) //влево
-			if (letterWidth > MIN_LETTER_WIDTH)
-			{
-				letterWidth--;
-				isPressed = true;
-			}
 		if (wParam == 40) //вниз
 			if (letterHeight < MAX_LETTER_HEIGHT)
 			{
@@ -303,7 +321,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	wcex.hIconSm = wcex.hIcon;
 	
 	RegisterClassEx(&wcex);//регистрация окна
-
 	GenerateMatrix();
 
 	hWnd = CreateWindow("LabWork2Class", "OSISP.LabWork 2",
