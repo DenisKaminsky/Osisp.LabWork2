@@ -123,7 +123,7 @@ void DrawTable(HDC hdc,int sx,int sy,int borderSize)
 		TEXT("Times New Roman"));
 	font = new Font(hdc, hFont);
 	SelectObject(hdc, hFont);
-	//SetTextCharacterExtra(hdc, textSpacing);
+	SetTextCharacterExtra(hdc, textSpacing);
 	GetTextExtentPoint32(hdc, matrix[0][0].c_str(), matrix[0][0].length(), &sz);
 	extTextLength = sz.cx;
 	linesCount = (int)((GetTextLength(hdc,0,0)/(hx -2*borderSize)) + 1);
@@ -143,11 +143,11 @@ void DrawTable(HDC hdc,int sx,int sy,int borderSize)
 			rect.left = (long)(posX + borderSize);
 			rect.right = (long)(posX + ((hx)*(hx)/ extTextLineLength) -borderSize);
 			rect.bottom = (long)(posY+hy - borderSize);			
-			DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL | DT_LEFT | DT_NOCLIP);
-			/*RectF *r = new RectF(rect.left, rect.top, hx, hy);
+			//DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL | DT_LEFT | DT_NOCLIP);
+			RectF *r = new RectF(rect.left, rect.top, hx, hy);
 			wstring ws = wstring(matrix[i][j].begin(), matrix[i][j].end());
 			const wchar_t* resstr = ws.c_str();
-			g->DrawString(resstr, matrix[i][j].length(), font, *r,format,brush);*/
+			g->DrawString(resstr, matrix[i][j].length(), font, *r,format,brush);
 			posX += hx;
 		}
 		
@@ -172,7 +172,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	PAINTSTRUCT ps;
 	TEXTMETRIC tm;
 	int step = 0;
-	int wheelDelta, MB_RESULT;;
+	int wheelDelta, MB_RESULT;
+	bool isPressed;
 	static int width = 0, height = 0;
 
 	switch (message)
@@ -188,30 +189,44 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	}
 	case WM_KEYDOWN: // Обработка нажатия клавиши
-		if (wParam == 68 || wParam == 39) //вправо
+		isPressed = false;
+		if (wParam == 39) //вправо
 			if (letterWidth < MAX_LETTER_WIDTH)
+			{
 				letterWidth++;
-		if (wParam == 65 || wParam == 37) //влево
+				isPressed = true;
+			}
+		if (wParam == 37) //влево
 			if (letterWidth > MIN_LETTER_WIDTH)
+			{
 				letterWidth--;
-		if (wParam == 83 || wParam == 40) //вниз
+				isPressed = true;
+			}
+		if (wParam == 40) //вниз
 			if (letterHeight < MAX_LETTER_HEIGHT)
+			{
 				letterHeight++;
-		if (wParam == 87 || wParam == 38) //вверх
+				isPressed = true;
+			}
+		if (wParam == 38) //вверх
 			if (letterHeight > MIN_LETTER_HEIGHT)
+			{
 				letterHeight--;
+				isPressed = true;
+			}
 		if (wParam == 27) //если нажали ESC то выходим 
 		{
 			MB_RESULT = MessageBox(hWnd, "Вы действительно хотите выйти ?", "Выход", MB_YESNO);
 			if (MB_RESULT == 6)
 				SendMessage(hWnd, WM_DESTROY, wParam, lParam);
 		}
-		InvalidateRect(hWnd, NULL, TRUE);
+		if (isPressed)
+			InvalidateRect(hWnd, NULL, TRUE);
 		break;
 	case WM_GETMINMAXINFO:
 	{
 		MINMAXINFO *pInfo = (MINMAXINFO *)lParam;
-		POINT Min = {columns*7, 500};
+		POINT Min = {(letterWidth+textSpacing)*columns, 500};
 		pInfo->ptMinTrackSize = Min;
 		break;
 	}
