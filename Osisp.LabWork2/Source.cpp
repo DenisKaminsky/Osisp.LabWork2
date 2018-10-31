@@ -1,10 +1,7 @@
 #include <windows.h>
 #include <string>
-#include <gdiplus.h>
-#pragma comment(lib, "gdiplus.lib") 
 
 using namespace std;
-using namespace Gdiplus;
 
 #define SCROLL_SPEED 30
 #define MAX_ROWS_COUNT 30
@@ -13,14 +10,17 @@ using namespace Gdiplus;
 #define MIN_LETTER_HEIGHT 10
 #define MAX_LETTER_WIDTH 20
 #define MIN_LETTER_WIDTH 3
+#define MIN_LINE_SPACING 3
+#define MAX_LINE_SPACING 30
 
-ULONG_PTR gdiplusToken;
 int rows = 5,columns = 6;//количество строк и столбцов
 int top = 0, bottom = 0;//координаты Y для верха и ниха таблицы
 int letterWidth = 6, letterHeight = 20;//ширина и высота шрифта
 int textSpacing = 0; //межбуквенный интервал
+int linesSpacing = 10, letterAngle = 0;
 float epsilon = 0;//коэфициент пропорции
 string** matrix;//матрица строк
+COLORREF rainbow[7] = { RGB(255,0,0), RGB(255,128,0), RGB(255,255,0),RGB(0,255,0),RGB(0,255,255),RGB(0,0,255),RGB(128,0,128)};
 
 //генерирование матрицы
 void GenerateMatrix()
@@ -47,7 +47,7 @@ void GenerateMatrix()
 			randcounter = rand() % 8 + 1;
 			s += to_string(randcounter);
 			for (int k= 0;k<randcounter;k++)
-				s+="sometext" + to_string(counter)+" ";
+				s+="sometext" + to_string(counter);
 			matrix[i][j] = s;
 			s = "";
 			counter++;
@@ -64,63 +64,43 @@ void RemoveMatrix()
 	}
 }
 
-//длина неформатированного текста
-int GetTextLength(HDC hdc,int i,int j)
-{
-	RECT rect;
-	rect.top = 0;
-	rect.left = 0;
-	rect.right = 1;
-	rect.bottom = 1;
-	DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_CALCRECT);
-	return rect.right;
-}
-
-//
 //получение максимальной высоты указанной строки
-float GetRowHeight(HDC hdc, int rowNumber,float hx,int borderSize)
+float GetRowHeight(int rowNumber, float hx)
 {
-	int maxLength = 0, maxIndex = 0;
-	RECT rect;
+	int maxLength = 0;
+	int lettersCount = 0, length = 0;
+	int rows = 0;
 
 	for (int i = 0; i < columns; i++)
 	{
-		int length = matrix[rowNumber][i].length();
+		lettersCount = matrix[rowNumber][i].length();
+		length = lettersCount*letterWidth + (lettersCount - 1)*textSpacing;
 		if (length > maxLength)
 		{
 			maxLength = length;
-			maxIndex = i;
 		}
 	}
-	rect.top = 0;
-	rect.left = 0;
-	rect.right = (long)hx-2*borderSize;
-	rect.bottom = borderSize;
-	DrawText(hdc, matrix[rowNumber][maxIndex].c_str(), maxLength, &rect,DT_CALCRECT| DT_WORDBREAK | DT_EDITCONTROL | DT_CENTER);
-	return (float)(rect.bottom+2*borderSize);
+	rows = (int)((float)(maxLength / hx) );
+	return rows*(letterHeight)+linesSpacing*(rows-1);
 }
 
-string ParseString(string str)
+void WrapString(HDC hdc,string str, RECT r)
 {
+	int x = r.left, y = r.top;
 	string tempStr = "";
-	char space = (char)0x20;
-	int i = 0, count = (int)((textSpacing / 4));
-
-	for (int i = 0; i < count; i++)
-		tempStr += space;
-	while (i < str.length())
+	for (int i = 0; i < str.length(); i++)
 	{
-		if (str[i] != space)
+		if ((x+letterWidth) >= r.right)
 		{
-			str.insert(i + 1, tempStr);
-			i += tempStr.length() + 1;
+			y += (letterHeight + linesSpacing);
+			x = r.left;
 		}
-		else
-		{
-			i++;
-		}
-	}			
-	return str;
+		tempStr += str[i];
+		SetTextColor(hdc, rainbow[i % 7]);
+		TextOut(hdc, x, y, tempStr.c_str(), 1);
+		x += (textSpacing + letterWidth);
+		tempStr = "";
+	}
 }
 
 //рисование таблицы
@@ -128,41 +108,23 @@ void DrawTable(HDC hdc,int sx,int sy,int borderSize)
 {
 	float posX = 0, posY = (float)top;
 	float hx = (float)sx / columns;
-	float hy = 0, extTextLineLength;
-	//int extTextLength, linesCount
+	float hy = 0;
 	HFONT hFont;
 	RECT rect;
-	//SIZE sz;
-	Graphics *g = new Graphics(hdc);
-	Brush *brush = new SolidBrush(Color::RoyalBlue);
-	LinearGradientBrush *br = new LinearGradientBrush(Point(0, 10), Point(200, 10), Color(255, 255, 0, 0), Color(255, 0, 0, 255));
-	StringFormat *format = new StringFormat();
-	Font *font;
-	wstring ws;
-	RectF *r;
 	string str;
 
 	//letterWidth = (int)((hx - 2 * borderSize) / 10)+5;
 	//letterHeight = (int)(epsilon*letterWidth);
-
 	textSpacing = (int)((hx - 2 * borderSize)/5);	
-	hFont = CreateFont(letterHeight,letterWidth,0, 0, FW_DONTCARE, FALSE, FALSE,
+	hFont = CreateFont(letterHeight,letterWidth,letterAngle, 0, FW_DONTCARE, FALSE, FALSE,
 		FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS,
 		CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH,
 		TEXT("Times New Roman"));
-	font = new Font(hdc, hFont);
-	/*SelectObject(hdc, hFont);
-	SetTextCharacterExtra(hdc, textSpacing);
-	GetTextExtentPoint32(hdc, matrix[0][0].c_str(), matrix[0][0].length(), &sz);
-	extTextLength = sz.cx;
-	linesCount = (int)((GetTextLength(hdc,0,0)/(hx -2*borderSize)) + 1);
-	extTextLineLength = (float)extTextLength / linesCount;
-	if (extTextLineLength < hx)
-		extTextLineLength = hx;*/
+	SelectObject(hdc, hFont);
 
 	for (int i = 0; i < rows; i++)
 	{
-		hy = GetRowHeight(hdc,i, hx,borderSize);
+		hy = GetRowHeight(i, hx);
 		posX = 0;
 		for (int j = 0; j < columns; j++)
 		{
@@ -170,14 +132,10 @@ void DrawTable(HDC hdc,int sx,int sy,int borderSize)
 			LineTo(hdc, (int)posX, (int)(posY+hy));
 			rect.top = (long)(posY+borderSize);
 			rect.left = (long)(posX + borderSize);
-			rect.right = (long)(posX + hx -borderSize);//(hx)*(hx)/extTextLineLength
+			rect.right = (long)(posX + hx -borderSize);
 			rect.bottom = (long)(posY+hy - borderSize);	
-			str = ParseString(matrix[i][j]);
-			//DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL | DT_LEFT );
-			r = new RectF(rect.left, rect.top, rect.right-rect.left, rect.bottom-rect.top);
-			ws = wstring(str.begin(), str.end());
-			const wchar_t* resstr = ws.c_str();
-			g->DrawString(resstr, str.length(), font, *r,format,br);
+			//DrawText(hdc, matrix[i][j].c_str(), matrix[i][j].length(), &rect, DT_WORDBREAK | DT_EDITCONTROL | DT_LEFT);
+			WrapString(hdc, matrix[i][j], rect);
 			posX += hx;
 		}
 		
@@ -214,12 +172,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		GetTextMetrics(hdc, &tm);
 		epsilon = (float)tm.tmHeight/tm.tmAveCharWidth;
 		ReleaseDC(hWnd, hdc);
-		Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-		GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 		break;
 	}
 	case WM_KEYDOWN: // Обработка нажатия клавиши
 		isPressed = false;
+		//наклон букв
+		if (wParam == 68)
+		{
+			letterAngle += 100;
+			isPressed = true;
+		}
+		if (wParam == 65)
+		{
+			letterAngle -= 100;
+			isPressed = true;
+		}
+		//межстрочный интервал
+		if (wParam == 87)
+		{
+			if (linesSpacing < MAX_LINE_SPACING)
+			{
+				linesSpacing++;
+				isPressed = true;
+			}
+		}
+		if (wParam == 83)
+		{
+			if (linesSpacing > MIN_LINE_SPACING)
+			{
+				linesSpacing--;
+				isPressed = true;
+			}
+		}
+		//межбуквенный интервал
 		if (wParam == 39) //вправо
 			if (letterWidth < MAX_LETTER_WIDTH)
 			{
@@ -229,7 +214,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		if (wParam == 37) //влево
 			if (letterWidth > MIN_LETTER_WIDTH)
 			{
-				letterWidth++;
+				letterWidth--;
 				isPressed = true;
 			}
 		if (wParam == 40) //вниз
@@ -303,7 +288,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_DESTROY:
 		RemoveMatrix();
-		Gdiplus::GdiplusShutdown(gdiplusToken);
 		PostQuitMessage(0);
 		break;
 	default:
@@ -311,7 +295,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	return 0;
 }
-
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
