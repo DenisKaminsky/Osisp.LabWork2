@@ -220,6 +220,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	case WM_KEYDOWN: // Обработка нажатия клавиши
 		isPressed = false;
+		if (wParam == 39) //вправо
+			if (letterWidth < MAX_LETTER_WIDTH)
+			{
+				letterWidth++;
+				isPressed = true;
+			}
+		if (wParam == 37) //влево
+			if (letterWidth > MIN_LETTER_WIDTH)
+			{
+				letterWidth++;
+				isPressed = true;
+			}
 		if (wParam == 40) //вниз
 			if (letterHeight < MAX_LETTER_HEIGHT)
 			{
