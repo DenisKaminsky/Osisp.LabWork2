@@ -17,6 +17,7 @@ int rows = 5,columns = 6;//количество строк и столбцов
 int top = 0, bottom = 0;//координаты Y для верха и ниха таблицы
 int letterWidth = 6, letterHeight = 20;//ширина и высота шрифта
 int textSpacing = 0; //межбуквенный интервал
+int delta = 0;
 int linesSpacing = 10, letterAngle = 0;
 float epsilon = 0;//коэфициент пропорции
 string** matrix;//матрица строк
@@ -80,14 +81,54 @@ float GetRowHeight(int rowNumber, float hx)
 			maxLength = length;
 		}
 	}
-	rows = (int)((float)(maxLength / hx) );
-	return rows*(letterHeight)+linesSpacing*(rows-1);
+	rows = (int)((maxLength / hx) +1);
+	return rows*(letterHeight)+linesSpacing*(rows);
+}
+
+
+void TransformLetter(HDC hdc, double angle, int x, int y,string s)
+{
+	HDC newDC = CreateCompatibleDC(hdc);
+	XFORM xf;
+	int prevGraphicsMode = SetGraphicsMode(newDC, GM_ADVANCED);
+	HBITMAP bmp = CreateCompatibleBitmap(hdc, 40, 40);
+	HGDIOBJ prevobj = SelectObject(newDC, bmp);
+
+	TextOut(newDC, 0, 0, s.c_str(), 1);
+	xf.eM11 = 1;
+	xf.eM12 = 0;
+	xf.eM21 = 0;
+	xf.eM22 = 1;
+	xf.eDx = (float)-(letterWidth / 2);
+	xf.eDy = (float)-(letterHeight / 2);
+	ModifyWorldTransform(newDC, &xf, MWT_RIGHTMULTIPLY);
+
+	xf.eM11 = (float)cos(angle);
+	xf.eM12 = (float)sin(angle);
+	xf.eM21 = (float)-sin(angle);
+	xf.eM22 = (float)cos(angle);
+	xf.eDx = 0;
+	xf.eDy = 0;
+	ModifyWorldTransform(newDC, &xf, MWT_RIGHTMULTIPLY);
+
+	xf.eM11 = 1;
+	xf.eM12 = 0;
+	xf.eM21 = 0;
+	xf.eM22 = 1;
+	xf.eDx = (float)(letterWidth / 2);
+	xf.eDy = (float)(letterHeight / 2);
+	ModifyWorldTransform(newDC, &xf, MWT_RIGHTMULTIPLY);
+	BitBlt(hdc,x,y,letterWidth,letterHeight,newDC,0,0, SRCCOPY);
+	SetGraphicsMode(newDC, prevGraphicsMode);
+	SelectObject(newDC, prevobj);
+	DeleteDC(newDC);
 }
 
 void WrapString(HDC hdc,string str, RECT r)
 {
 	int x = r.left, y = r.top;
 	string tempStr = "";
+
 	for (int i = 0; i < str.length(); i++)
 	{
 		if ((x+letterWidth) >= r.right)
@@ -97,6 +138,7 @@ void WrapString(HDC hdc,string str, RECT r)
 		}
 		tempStr += str[i];
 		SetTextColor(hdc, rainbow[i % 7]);
+		//TransformLetter(hdc, letterAngle, x, y,tempStr);
 		TextOut(hdc, x, y, tempStr.c_str(), 1);
 		x += (textSpacing + letterWidth);
 		tempStr = "";
@@ -113,9 +155,7 @@ void DrawTable(HDC hdc,int sx,int sy,int borderSize)
 	RECT rect;
 	string str;
 
-	//letterWidth = (int)((hx - 2 * borderSize) / 10)+5;
-	//letterHeight = (int)(epsilon*letterWidth);
-	textSpacing = (int)((hx - 2 * borderSize)/5);	
+	textSpacing = (int)((hx - 2 * borderSize) / 4);
 	hFont = CreateFont(letterHeight,letterWidth,letterAngle, 0, FW_DONTCARE, FALSE, FALSE,
 		FALSE, DEFAULT_CHARSET, OUT_OUTLINE_PRECIS,
 		CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, VARIABLE_PITCH,
@@ -205,6 +245,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 		}
 		//межбуквенный интервал
+		/*if (wParam == 49)
+		{
+			delta++;
+			isPressed = true;
+		}*/
+		//размеры букв
 		if (wParam == 39) //вправо
 			if (letterWidth < MAX_LETTER_WIDTH)
 			{
@@ -241,8 +287,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_GETMINMAXINFO:
 	{
 		MINMAXINFO *pInfo = (MINMAXINFO *)lParam;
-		POINT Min = {(letterWidth+textSpacing)*columns, 500};
-		pInfo->ptMinTrackSize = Min;
+		//POINT Min = {(letterWidth+textSpacing)*columns, 500};
+		//pInfo->ptMinTrackSize = Min;
 		break;
 	}
 	case WM_SIZE: 
@@ -321,7 +367,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdL
 	hWnd = CreateWindow("LabWork2Class", "OSISP.LabWork 2",
 		WS_OVERLAPPEDWINDOW|WS_VSCROLL, CW_USEDEFAULT, 0,
 		CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);	
-
 	//отображение окна
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);	
